@@ -25,6 +25,15 @@ jobs:
       - name: Build with Gradle
         run: ./gradlew build
 
+      - name: Install GitHub CLI
+        run: sudo apt-get install gh
+
+      - name: Create Release
+        run: |
+          gh release create temp-release --notes "Temporary release for artifacts" --draft || echo "Release already exists"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Upload Individual Artifacts
         run: |
           for artifact in ./build/libs/*.jar; do
