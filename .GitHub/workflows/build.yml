@@ -1,0 +1,42 @@
+name: Build  
+  
+on:  
+  workflow_dispatch:  
+  
+jobs:  
+  build:  
+    runs-on: ubuntu-latest  
+    steps:  
+    - name: Checkout sources  
+      uses: actions/checkout@v4  
+    - name: Setup Java  
+      uses: actions/setup-java@v4  
+      with:  
+        distribution: 'temurin'  
+        java-version: 8  
+    - name: Setup Gradle  
+      uses: gradle/actions/setup-gradle@v4  
+    - name: Setup Decoml Workspace  
+      run: ./gradlew setupDecompWorkspace       
+    - name: Build with Gradle  
+      run:  ./gradlew build  
+    - name: Archive Artifacts  
+      uses: actions/upload-artifact@v3  
+      with:  
+        name: Artifacts  
+        path: ./build/libs/*dirty.jar```  
+  
+With this failure log  
+```Current runner version: '2.323.0'  
+Operating System  
+Runner Image  
+Runner Image Provisioner  
+GITHUB_TOKEN Permissions  
+Secret source: Actions  
+Prepare workflow directory  
+Prepare all required actions  
+Getting action download info  
+Download immutable action package 'actions/checkout@v4'  
+Download immutable action package 'actions/setup-java@v4'  
+Download action repository 'gradle/actions@v4' (SHA:06832c7b30a0129d7fb559bcc6e43d26f6374244)  
+Error: Missing download info for actions/upload-artifact@v3```
