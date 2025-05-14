@@ -1,0 +1,43 @@
+name: Release Clean Artifacts
+
+on:
+  workflow_run:
+    workflows: ["Build"]
+    types:
+      - completed
+
+jobs:
+  release:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download release-jars artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: release-jars
+          path: renamed-jars
+
+      - name: Rename JARs (remove .dirty, .dirty-dev, .dirty-sources)
+        working-directory: renamed-jars
+        run: |
+          for f in *dirty*.jar; do
+            newname="$f"
+            newname="${newname/.dirty-dev/}"
+            newname="${newname/.dirty-sources/}"
+            newname="${newname/.dirty/}"
+            mv "$f" "$newname"
+            echo "Renamed $f -> $newname"
+          done
+
+      - name: Install GitHub CLI
+        run: sudo apt-get install -y gh
+
+      - name: Create Final Clean Release
+        working-directory: renamed-jars
+        run: |
+          gh release create clean-release *.jar \
+            --title "Clean Release" \
+            --notes "Automated clean release with properly named artifacts."
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
