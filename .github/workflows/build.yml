@@ -25,6 +25,22 @@ jobs:
       - name: Build with Gradle
         run: ./gradlew build
 
+      - name: List built files (for debugging)
+        run: ls -al ./build/libs/
+
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: release-jars
+          path: ./build/libs/*.jar
+          
+  release:
+    needs: build  # This ensures the release job runs after the build job finishes successfully
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+
       - name: Install GitHub CLI
         run: sudo apt-get install gh
 
@@ -34,11 +50,20 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Upload Individual Artifacts
+      - name: Download Build Artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: release-jars
+
+      - name: Rename Artifacts and Upload to Release
         run: |
-          for artifact in ./build/libs/*.jar; do
-            echo "Uploading $artifact"
-            gh release upload temp-release "$artifact" --clobber
+          for artifact in ./release-jars/*.jar; do
+            # Remove -dirty from the file name
+            new_name=$(echo "$artifact" | sed 's/.*-dirty\.jar/\1\.jar/')
+            echo "Renaming $artifact to $new_name"
+            mv "$artifact" "$new_name"
+            echo "Uploading $new_name"
+            gh release upload temp-release "$new_name" --clobber
           done
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
