@@ -1,4 +1,4 @@
-- name: Create Release
+- name: Release
   run: |
     artifact=$(find ./build/libs -name '*.jar' | head -n 1)
     base=$(basename "$artifact")
