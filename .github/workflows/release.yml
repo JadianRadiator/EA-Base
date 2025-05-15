@@ -1,4 +1,4 @@
-name: Release Artifacts
+name: Build
 
 on:
   workflow_dispatch:
@@ -26,15 +26,15 @@ jobs:
         run: ./gradlew build
 
       - name: Install GitHub CLI
-        run: sudo apt-get install gh
+        run: sudo apt-get install -y gh
 
       - name: Create Release
         run: |
-          artifact=$(find ./build/libs -name '*.jar' | head -n 1)
+          artifact=$(find ./build/libs -type f -name 'Eln-*.jar' ! -name '*-dev.jar' ! -name '*-sources.jar' | head -n 1)
           base=$(basename "$artifact")
           clean_base="${base/.dirty/}"
 
-          if [[ "$clean_base" =~ (ELN[^.]+).*([a-fA-F0-9]{7,})\.jar ]]; then
+          if [[ "$clean_base" =~ ^(Eln)-([a-fA-F0-9]{7,})\.jar$ ]]; then
             eln="${BASH_REMATCH[1]}"
             hash="${BASH_REMATCH[2]}"
           else
