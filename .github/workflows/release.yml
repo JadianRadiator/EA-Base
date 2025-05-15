@@ -1,43 +1,59 @@
-name: Release Clean Artifacts
-
 on:
-  workflow_run:
-    workflows: ["Build"]
-    types:
-      - completed
+  workflow_dispatch:
 
 jobs:
-  release:
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+  build:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Download release-jars artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: release-jars
-          path: renamed-jars
+      - name: Checkout sources
+        uses: actions/checkout@v4
 
-      - name: Rename JARs (remove .dirty, .dirty-dev, .dirty-sources)
-        working-directory: renamed-jars
-        run: |
-          for f in *dirty*.jar; do
-            newname="$f"
-            newname="${newname/.dirty-dev/}"
-            newname="${newname/.dirty-sources/}"
-            newname="${newname/.dirty/}"
-            mv "$f" "$newname"
-            echo "Renamed $f -> $newname"
-          done
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: 8
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Setup Decomp Workspace
+        run: ./gradlew setupDecompWorkspace
+
+      - name: Build with Gradle
+        run: ./gradlew build
 
       - name: Install GitHub CLI
-        run: sudo apt-get install -y gh
+        run: sudo apt-get install gh
 
-      - name: Create Final Clean Release
-        working-directory: renamed-jars
+      - name: Create Release
         run: |
-          gh release create clean-release *.jar \
-            --title "Clean Release" \
-            --notes "Automated clean release with properly named artifacts."
+          artifact=$(find ./build/libs -name '*.jar' | head -n 1)
+          base=$(basename "$artifact")
+          clean_base="${base/.dirty/}"
+          
+          # Extract ELN and hash parts
+          if [[ "$clean_base" =~ (ELN[^.]+).*([a-fA-F0-9]{7,})\.jar ]]; then
+            eln="${BASH_REMATCH[1]}"
+            hash="${BASH_REMATCH[2]}"
+          else
+            eln="unknown-ELN"
+            hash="unknown-hash"
+          fi
+
+          title="$eln-$hash"
+          gh release create "$title" --title "$title" --notes "Auto release for $title" || echo "Release already exists"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Cleaned Artifacts to Release
+        run: |
+          mkdir -p release-artifacts
+          for artifact in ./build/libs/*.jar; do
+            clean_name=$(basename "$artifact" | sed 's/\.dirty//g')
+            cp "$artifact" "release-artifacts/$clean_name"
+            echo "Uploading $clean_name"
+            gh release upload "$title" "release-artifacts/$clean_name" --clobber
+          done
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
